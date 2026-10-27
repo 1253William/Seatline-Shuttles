@@ -1,0 +1,5 @@
+origin,destination,fare_pesewas,seats,date,departs
+Accra,Kumasi,15000,16,2026-11-02,06:00
+Accra,Kumasi,15000,16,2026-11-02,14:00
+Accra,Takoradi,14000,16,2026-11-02,07:30
+Kumasi,Accra,15000,16,2026-11-03,09:00

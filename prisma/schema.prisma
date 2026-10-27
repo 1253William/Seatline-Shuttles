@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  HELD
+  PAYMENT_PENDING
+  CONFIRMED
+}
+
+model Trip {
+  id            String    @id @default(cuid())
+  origin        String
+  destination   String
+  travelDate    DateTime  @db.Date
+  departs       String
+  farePesewas   Int
+  seatsTotal    Int       @default(16)
+  createdAt     DateTime  @default(now())
+  bookings      Booking[]
+
+  @@unique([origin, destination, travelDate, departs])
+  @@index([origin, destination, travelDate])
+}
+
+model Booking {
+  id                String        @id @default(cuid())
+  tripId            String
+  trip              Trip          @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  seatNo            Int
+  passengerPhone    String
+  status            BookingStatus @default(HELD)
+  expiresAt         DateTime
+  paymentReference  String?       @unique
+  ticketReference   String?       @unique
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([tripId, seatNo])
+  @@index([status, expiresAt])
+  @@index([passengerPhone, createdAt])
+}
