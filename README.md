@@ -81,6 +81,58 @@ Set `MCP_SERVER_URL`, `MCP_BEARER_TOKEN`, `CHORD_API_TOKEN`, `CHORD_REGISTER_END
 
 Happy path: search Accra to Kumasi on a seeded date, choose a departure, hold a seat, create a payment link, complete the Paystack test payment, then verify using the returned payment reference. Confirm that a ticket reference is returned only after verification. For a failure path, select a fully occupied trip or attempt to pay after a hold expires; the tool returns a structured error with a safe next action.
 
+
+## Scenario 1: Happy path (the main demo)
+
+**Customer:** Hi, any seat to Kumasi tomorrow 6am?
+**Expect:** The agent calls `find_trips`, then returns with no results for the set time date tomorrow.
+
+**Customer:** Book me one seat in November.
+**Expect:** The agent asks for a date, finds seats availability in November and asks you to choose.
+
+**Customer:** Seat [2]. Number is 09000000000.
+**Expect:** `hold_seat` runs. The agent says the seat is held for 10 minutes. `create_payment_link` runs and it sends the Paystack link.
+
+**Customer:** (Opens the link and pays with a Paystack test card, then returns to the chat) I've paid.
+**Expect:** `verify_payment` runs against Paystack. The agent confirms the payment and gives a ticket reference.
+
+**Customer:** Can you send my booking details again?
+**Expect:** `get_booking` runs. The agent repeats the trip, seat, amount and ticket reference.
+
+## Scenario 2: No trips found
+
+**Customer:** Any seat to Tamale tomorrow 6am?
+**Expect:** The `no trips found` case. The agent says there is no such trip and offers nearby times or the routes it does serve. It does not invent a trip.
+
+## Scenario 3: Sold out
+
+**Customer:** One seat to Kumasi at [a fully booked time], please.
+**Expect:** The `sold out` case. The agent says the trip is full and suggests the next available trip.
+
+## Scenario 4: Seat already taken (double-booking protection)
+
+Use two chat links, one for Customer A and one for Customer B.
+
+**Customer A:** Hold seat [7] on the Kumasi 6am for me.
+**Expect:** Seat 7 is held.
+
+**Customer B:** I want seat [7] on the same trip.
+**Expect:** The agent says seat 7 is unavailable and offers other free seats. This shows the unique constraint working.
+
+## Scenario 5: Hold expires
+
+**Customer:** Hold seat [9] on the Kumasi 6am. (Do not pay. Wait more than 10 minutes.)
+**Customer:** Okay, I'm ready to pay now.
+**Expect:** The `hold expired` case. The agent says the hold has lapsed. If the seat is still free, it offers to hold it again with a new link. If not, it offers alternatives.
+
+## Scenario 6: Payment abandoned or pending
+
+**Customer:** Hold seat [10]. (Open the payment link but close it without paying.)
+**Customer:** I've paid.
+**Expect:** `verify_payment` returns abandoned or pending. The agent does not confirm the seat. It says it can't see the payment yet, and offers to check again or send a fresh link.
+
+
+
 ## Status
 
 | Item | Status |
