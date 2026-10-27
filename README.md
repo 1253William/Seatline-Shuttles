@@ -92,7 +92,7 @@ Happy path: search Accra to Kumasi on a seeded date, choose a departure, hold a 
 
 ## How I used AI tools
 
-AI assistance was used to scaffold the service layout and implementation. The Prisma schema, tool flow, validation paths, and documentation should be reviewed against the operator's production requirements before go-live. Run `npm run build` and the test-mode payment flow before deployment.
+AI assistance was used for planning the project and scaffolding the project, reviewing code. Testing was handled first in Postman collections by myself, and then via Chord Chat Simulator
 
 ## Known limitations
 
