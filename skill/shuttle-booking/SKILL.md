@@ -1,6 +1,6 @@
 ---
 name: shuttle-booking
-description: Book a single Seatline shuttle seat and verify payment before confirming a ticket.
+description: Seat booking agent for Seatline Shuttles: books one paid seat on WhatsApp
 ---
 
 # Seatline shuttle booking
