@@ -71,6 +71,8 @@ The Paystack webhook endpoint is `POST /webhooks/paystack`; configure it in the 
 
 Build command: `npm run build`. Start command: `npm start`. Health-check path: `/health`. Set the environment variables listed above in the hosting provider's secret manager and expose the webhook over HTTPS.
 
+The server pings its `/health` endpoint through `RENDER_EXTERNAL_URL` every 13 minutes to reduce free-instance spin-downs. Render provides `RENDER_EXTERNAL_URL` automatically. This in-process cron can help while the service is running, but it is not an external wake-up mechanism and cannot guarantee availability if the service has already spun down. The first request after a spin-down can take about a minute. Keeping a free instance awake can consume nearly all of Render's 750 monthly free instance hours for a workspace, so use a paid instance if reliable always-on service is required.
+
 ## Connect to Chord
 
 Set `MCP_SERVER_URL`, `MCP_BEARER_TOKEN`, `CHORD_API_TOKEN`, `CHORD_REGISTER_ENDPOINT`, `CHORD_ASSIGN_ENDPOINT`, and `CHORD_TEAMMATE_ID`, then run `bash scripts/register-chord.sh`. The script health-checks the server, registers only the five booking tools, and assigns the resulting server ID to the teammate. The two Chord endpoint variables must be the API endpoints for your workspace; the script expects the registration response to contain an `id` or `server.id`.

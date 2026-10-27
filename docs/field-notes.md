@@ -20,6 +20,8 @@ The application uses Prisma against PostgreSQL. `DATABASE_URL` can include the p
 
 Use `npm run build` as the build command, `npm start` as the start command, and `/health` as the health-check path. Set all runtime variables from `.env.example` in the host's secret manager; never commit `.env` or test/live secret keys.
 
+The server uses an in-process cron to ping `/health` through Render's automatically provided `RENDER_EXTERNAL_URL` every 13 minutes. This can reduce free-instance spin-downs while the process is active, but cannot wake a service once it has spun down. Keeping a free Render instance awake can use nearly all of the workspace's 750 monthly free instance hours; use a paid instance for reliable always-on service.
+
 ## Operational cautions
 
 - Back up PostgreSQL and restrict its network access.

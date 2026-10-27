@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { timingSafeEqual } from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
+import cron from "node-cron";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { processPaystackEvent, createMcpServer } from "./mcp/tools.js";
 import { isValidWebhookSignature } from "./lib/paystack.js";
@@ -124,4 +125,28 @@ app.get("/payment/callback", (_req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`Seatline MCP server listening on port ${PORT}`);
+
+  const baseUrl = process.env.RENDER_EXTERNAL_URL ?? `http://127.0.0.1:${PORT}`;
+  const healthUrl = new URL("/health", baseUrl);
+
+  cron.schedule(
+    "*/13 * * * *",
+    async () => {
+      try {
+        const response = await fetch(healthUrl, {
+          signal: AbortSignal.timeout(8_000),
+          headers: { "x-ping-source": "seatline-keep-alive" },
+        });
+        await response.body?.cancel();
+        if (response.ok) {
+          console.log(`Keep-alive ping succeeded: ${response.status}`);
+        } else {
+          console.warn(`Keep-alive ping returned HTTP ${response.status}`);
+        }
+      } catch (error) {
+        console.error("Keep-alive ping failed:", error);
+      }
+    },
+    { noOverlap: true },
+  );
 });
