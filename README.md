@@ -46,6 +46,7 @@ WhatsApp simulator -> Chord teammate (skill files)
 | Tool | Purpose |
 |---|---|
 | `find_trips` | Search trips by origin, destination, date |
+| `list_upcoming_trips` | List all upcoming trips (optionally by origin/destination) |
 | `hold_seat` | Reserve a seat for 10 minutes |
 | `create_payment_link` | Initialize a Paystack transaction |
 | `verify_payment` | Verify with Paystack, confirm the booking, issue the ticket |
@@ -75,7 +76,7 @@ The server pings its `/health` endpoint through `RENDER_EXTERNAL_URL` every 13 m
 
 ## Connect to Chord
 
-Set `MCP_SERVER_URL`, `MCP_BEARER_TOKEN`, `CHORD_API_TOKEN`, `CHORD_REGISTER_ENDPOINT`, `CHORD_ASSIGN_ENDPOINT`, and `CHORD_TEAMMATE_ID`, then run `bash scripts/register-chord.sh`. The script health-checks the server, registers only the five booking tools, and assigns the resulting server ID to the teammate. The two Chord endpoint variables must be the API endpoints for your workspace; the script expects the registration response to contain an `id` or `server.id`.
+Set `MCP_SERVER_URL`, `MCP_BEARER_TOKEN`, `CHORD_API_TOKEN`, `CHORD_REGISTER_ENDPOINT`, `CHORD_ASSIGN_ENDPOINT`, and `CHORD_TEAMMATE_ID`, then run `bash scripts/register-chord.sh`. The script health-checks the server, registers only the six booking tools, and assigns the resulting server ID to the teammate. The two Chord endpoint variables must be the API endpoints for your workspace; the script expects the registration response to contain an `id` or `server.id`.
 
 ## Test the full conversation
 

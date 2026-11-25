@@ -26,6 +26,7 @@ registration="$(jq -n \
     authentication: { type: "bearer", token: $token },
     enabled_tools: [
       "find_trips",
+      "list_upcoming_trips",
       "hold_seat",
       "create_payment_link",
       "verify_payment",

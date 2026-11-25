@@ -135,6 +135,58 @@ export function createMcpServer(): McpServer {
     },
   );
 
+  //Tool for listing every upcoming trip so the agent never has to guess dates
+  //1b.list_upcoming_trips
+  server.registerTool(
+    "list_upcoming_trips",
+    {
+      title: "List Upcoming Trips",
+      description: "List all published trips from today onward, optionally filtered by origin and/or destination. Use when the passenger asks what trips or dates are available, or when find_trips returns nothing.",
+      inputSchema: {
+        origin: z.string().trim().min(2).max(80).optional(),
+        destination: z.string().trim().min(2).max(80).optional(),
+      },
+    },
+    async ({ origin, destination }) => {
+      const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+      const trips = await prisma.trip.findMany({
+        where: {
+          travelDate: { gte: today },
+          ...(origin ? { origin: { equals: origin, mode: "insensitive" as const } } : {}),
+          ...(destination ? { destination: { equals: destination, mode: "insensitive" as const } } : {}),
+        },
+        orderBy: [{ travelDate: "asc" }, { departs: "asc" }],
+        take: 100,
+      });
+
+      const now = new Date();
+      await prisma.booking.deleteMany({
+        where: { tripId: { in: trips.map((t) => t.id) }, status: { not: BookingStatus.CONFIRMED }, expiresAt: { lte: now } },
+      });
+      const counts = await prisma.booking.groupBy({
+        by: ["tripId"],
+        where: { tripId: { in: trips.map((t) => t.id) } },
+        _count: { _all: true },
+      });
+      const occupiedByTrip = new Map(counts.map((c) => [c.tripId, c._count._all]));
+
+      return asText({
+        ok: true,
+        today: today.toISOString().slice(0, 10),
+        trips: trips.map((trip) => ({
+          id: trip.id,
+          origin: trip.origin,
+          destination: trip.destination,
+          date: trip.travelDate.toISOString().slice(0, 10),
+          departs: trip.departs,
+          farePesewas: trip.farePesewas,
+          seatsLeft: Math.max(0, trip.seatsTotal - (occupiedByTrip.get(trip.id) ?? 0)),
+        })),
+        ...(trips.length === 0 ? { note: "No upcoming trips match. Offer to hand off to staff." } : {}),
+      });
+    },
+  );
+
   //Tool for holding a seat on a trip for 10 minutes after selection
   //2.hold_seat
   server.registerTool(
