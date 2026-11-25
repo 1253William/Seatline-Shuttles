@@ -21,8 +21,15 @@ function isRetryableDatabaseError(error: unknown): boolean {
 }
 
 
+//Paystack requires an email; when the passenger gives none, derive one from their phone number
+function paymentEmail(email: string | undefined, phone: string): string {
+  if (email) return email;
+  const digits = phone.replace(/\D/g, "");
+  return `${digits || "passenger"}@pay.seatline.app`;
+}
+
 //Async function to confirm payment and update booking status
-async function confirmPayment(reference: string) {
+export async function confirmPayment(reference: string) {
   const booking = await prisma.booking.findUnique({
     where: { paymentReference: reference },
     include: { trip: true },
@@ -258,10 +265,10 @@ export function createMcpServer(): McpServer {
     "create_payment_link",
     {
       title: "Create Payment Link",
-      description: "Create a Paystack payment link for an active seat hold.",
+      description: "Create a Paystack payment link for an active seat hold. Email is optional; without it the passenger's phone number is used. The link is shown to the passenger in chat, not emailed.",
       inputSchema: {
         hold_id: z.string().min(1),
-        email: z.string().email(),
+        email: z.string().trim().email().optional(),
       },
     },
     async ({ hold_id, email }) => {
@@ -282,7 +289,7 @@ export function createMcpServer(): McpServer {
       if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL is not configured.");
       try {
         const payment = await initializePayment({
-          email,
+          email: paymentEmail(email, booking.passengerPhone),
           amountPesewas: booking.trip.farePesewas,
           reference: paymentReference,
           callbackUrl: `${publicBaseUrl.replace(/\/$/, "")}/payment/callback`,
@@ -316,12 +323,33 @@ export function createMcpServer(): McpServer {
     "verify_payment",
     {
       title: "Verify Payment",
-      description: "Verify a Paystack transaction server-side and confirm the associated booking.",
-      inputSchema: { payment_reference: z.string().min(1) },
+      description: "Verify a Paystack transaction server-side and confirm the booking. Pass the hold_id from hold_seat (preferred), or the passenger's phone, or a payment_reference; the passenger never needs to look up a reference. Safe to call repeatedly.",
+      inputSchema: {
+        hold_id: z.string().min(1).optional(),
+        passenger_phone: z.string().trim().min(8).max(20).optional(),
+        payment_reference: z.string().min(1).optional(),
+      },
     },
-    async ({ payment_reference }) => {
+    async ({ hold_id, passenger_phone, payment_reference }) => {
       try {
-        const result = await confirmPayment(payment_reference);
+        let reference = payment_reference;
+        if (!reference) {
+          if (!hold_id && !passenger_phone) {
+            return asError(bookingError("INVALID_INPUT", "Provide a hold_id, passenger phone, or payment reference.", "Use the hold ID from hold_seat."));
+          }
+          const found = await prisma.booking.findFirst({
+            where: {
+              paymentReference: { not: null },
+              ...(hold_id ? { id: hold_id } : { passengerPhone: passenger_phone }),
+            },
+            orderBy: { createdAt: "desc" },
+          });
+          reference = found?.paymentReference ?? undefined;
+          if (!reference) {
+            return asError(bookingError("HOLD_NOT_FOUND", "No payment has been started for this hold or phone number.", "Create a payment link first, or hold a seat again if it expired."));
+          }
+        }
+        const result = await confirmPayment(reference);
         if (result.error) return asError(result.error);
         const booking = result.booking;
         if (!booking) throw new Error("Confirmed booking result is missing.");

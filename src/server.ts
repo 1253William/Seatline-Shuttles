@@ -119,8 +119,37 @@ const methodNotAllowed = (_req: Request, res: Response) => {
 app.get("/mcp", methodNotAllowed);
 app.delete("/mcp", methodNotAllowed);
 
-app.get("/payment/callback", (_req: Request, res: Response) => {
-  res.status(200).send("Payment received. Return to the booking assistant to verify your ticket.");
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+}
+
+//Paystack redirects here after payment. Verify server-side so the booking is already confirmed
+//by the time the passenger returns to the chat; the agent then confirms with verify_payment.
+//@route GET /payment/callback
+app.get("/payment/callback", async (req: Request, res: Response) => {
+  const raw = req.query.reference ?? req.query.trxref;
+  const reference = typeof raw === "string" ? raw : "";
+  let message = "Payment received. Return to the booking assistant; it will confirm your ticket.";
+  if (reference) {
+    try {
+      const result = await processPaystackEvent(reference);
+      if (result.booking) {
+        const b = result.booking;
+        message = `Payment confirmed. Ticket ${b.ticketReference}: ${b.trip.origin} to ${b.trip.destination}, ` +
+          `${b.trip.travelDate.toISOString().slice(0, 10)} at ${b.trip.departs}, seat ${b.seatNo}. ` +
+          "Return to the chat and say you have paid.";
+      } else if (result.error) {
+        message = "We could not confirm this payment yet. Return to the booking assistant and say you have paid; it will check again.";
+      }
+    } catch (error) {
+      console.error("Payment callback verification failed:", error);
+    }
+  }
+  res.status(200).type("html").send(
+    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<title>Seatline Shuttles</title><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">` +
+    `<h2>Seatline Shuttles</h2><p>${escapeHtml(message)}</p></body>`,
+  );
 });
 
 app.listen(PORT, () => {
